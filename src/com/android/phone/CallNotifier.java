@@ -153,7 +153,10 @@ public class CallNotifier extends Handler
     protected PhoneGlobals mApplication;
     protected CallManager mCM;
     protected Ringer mRinger;
-    private BluetoothHeadset mBluetoothHeadset;
+    // Engle, bluez, start
+    private BluetoothHandsfree mBluetoothHandsfree;
+    //private BluetoothHeadset mBluetoothHeadset;
+    // Engle, bluez, end
     protected CallLogger mCallLogger;
     protected CallModeler mCallModeler;
     protected boolean mSilentRingerRequested;
@@ -183,7 +186,9 @@ public class CallNotifier extends Handler
     private AudioManager mAudioManager;
     private Vibrator mVibrator;
 
-    protected final BluetoothManager mBluetoothManager;
+    // Engle, add for bluez bluetooth, start
+    // private final BluetoothManager mBluetoothManager;
+    // Engle, add for bluez bluetooth, end
 
     // Blacklist handling
     private static final String BLACKLIST = "Blacklist";
@@ -194,11 +199,11 @@ public class CallNotifier extends Handler
      */
     /* package */ static CallNotifier init(PhoneGlobals app, Phone phone, Ringer ringer,
             CallLogger callLogger, CallStateMonitor callStateMonitor,
-            BluetoothManager bluetoothManager, CallModeler callModeler) {
+            CallModeler callModeler) {
         synchronized (CallNotifier.class) {
             if (sInstance == null) {
                 sInstance = new CallNotifier(app, phone, ringer, callLogger, callStateMonitor,
-                        bluetoothManager, callModeler);
+                        callModeler);
             } else {
                 Log.wtf(LOG_TAG, "init() called multiple times!  sInstance = " + sInstance);
             }
@@ -207,13 +212,22 @@ public class CallNotifier extends Handler
     }
 
     /** Private constructor; @see init() */
-    protected CallNotifier(PhoneGlobals app, Phone phone, Ringer ringer, CallLogger callLogger,
+    // Engle, add for bluez bluetooth, start
+    /*
+    private CallNotifier(PhoneGlobals app, Phone phone, Ringer ringer, CallLogger callLogger,
             CallStateMonitor callStateMonitor, BluetoothManager bluetoothManager,
+            CallModeler callModeler) {
+    */
+    // Engle, add for bluez bluetooth, end
+    protected CallNotifier(PhoneGlobals app, Phone phone, Ringer ringer, CallLogger callLogger,
+            CallStateMonitor callStateMonitor,
             CallModeler callModeler) {
         mApplication = app;
         mCM = app.mCM;
         mCallLogger = callLogger;
-        mBluetoothManager = bluetoothManager;
+        // Engle, add for bluez bluetooth, start
+        // mBluetoothManager = bluetoothManager;
+        // Engle, add for bluez bluetooth, end
         mCallModeler = callModeler;
 
         mAudioManager = (AudioManager) mApplication.getSystemService(Context.AUDIO_SERVICE);
@@ -226,9 +240,12 @@ public class CallNotifier extends Handler
         mRinger = ringer;
         BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
         if (adapter != null) {
-            adapter.getProfileProxy(mApplication.getApplicationContext(),
+            // Engle, add for bluez bluetooth, start
+            /*adapter.getProfileProxy(mApplication.getApplicationContext(),
                                     mBluetoothProfileServiceListener,
                                     BluetoothProfile.HEADSET);
+             - TODO dirty hack to compile */
+             // Engle, add for bluez bluetooth, end
         }
         listen();
     }
@@ -851,8 +868,10 @@ public class CallNotifier extends Handler
         // listens for phone state changes itself.
         // TODO: Have BluetoothManager listen to CallModeler instead of relying on
         // CallNotifier
-        mBluetoothManager.updateBluetoothIndication();
-
+        // Engle, add for bluez bluetooth, start
+         // mBluetoothManager.updateBluetoothIndication();
+        mApplication.updateBluetoothIndication(false);
+        // Engle, add for bluez bluetooth, end
 
         // Update the phone state and other sensor/lock.
         mApplication.updatePhoneState(state);
@@ -1317,9 +1336,11 @@ public class CallNotifier extends Handler
     protected void resetAudioStateAfterDisconnect() {
         if (VDBG) log("resetAudioStateAfterDisconnect()...");
 
-        if (mBluetoothHeadset != null) {
-            mBluetoothHeadset.disconnectAudio();
+        // Engle, add for bluez bluetooth, start
+        if (mBluetoothHandsfree != null) {
+            mBluetoothHandsfree.audioOff();
         }
+        // Engle, add for bluez bluetooth, end
 
         // call turnOnSpeaker() with state=false and store=true even if speaker
         // is already off to reset user requested speaker state.
@@ -1586,8 +1607,9 @@ public class CallNotifier extends Handler
             ToneGenerator toneGenerator;
             try {
                 int stream;
-                if (mBluetoothHeadset != null) {
-                    stream = mBluetoothHeadset.isAudioOn() ? AudioManager.STREAM_BLUETOOTH_SCO:
+                // Engle, add for bluez bluetooth
+                if (mBluetoothHandsfree != null) {
+                    stream = mBluetoothHandsfree.isAudioOn() ? AudioManager.STREAM_BLUETOOTH_SCO:
                         AudioManager.STREAM_VOICE_CALL;
                 } else {
                     stream = AudioManager.STREAM_VOICE_CALL;
@@ -2039,6 +2061,8 @@ public class CallNotifier extends Handler
         }
     }
 
+    // Engle, add for bluez bluetooth
+/*
      private BluetoothProfile.ServiceListener mBluetoothProfileServiceListener =
         new BluetoothProfile.ServiceListener() {
         public void onServiceConnected(int profile, BluetoothProfile proxy) {
@@ -2050,7 +2074,7 @@ public class CallNotifier extends Handler
             mBluetoothHeadset = null;
         }
     };
-
+*/
     private void onRingbackTone(AsyncResult r) {
         boolean playTone = (Boolean)(r.result);
 

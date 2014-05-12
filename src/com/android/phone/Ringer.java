@@ -57,7 +57,7 @@ public class Ringer {
     // Uri for the ringtone.
     Uri mCustomRingtoneUri = Settings.System.DEFAULT_RINGTONE_URI;
 
-    private final BluetoothManager mBluetoothManager;
+    //private final BluetoothManager mBluetoothManager;
     Ringtone mRingtone;
     Vibrator mVibrator;
     AudioManager mAudioManager;
@@ -77,10 +77,10 @@ public class Ringer {
      * Initialize the singleton Ringer instance.
      * This is only done once, at startup, from PhoneApp.onCreate().
      */
-    /* package */ static Ringer init(Context context, BluetoothManager bluetoothManager) {
+    /* package */ static Ringer init(Context context) {
         synchronized (Ringer.class) {
             if (sInstance == null) {
-                sInstance = new Ringer(context, bluetoothManager);
+                sInstance = new Ringer(context);
             } else {
                 Log.wtf(LOG_TAG, "init() called multiple times!  sInstance = " + sInstance);
             }
@@ -89,10 +89,8 @@ public class Ringer {
     }
 
     /** Private constructor; @see init() */
-    private Ringer(Context context, BluetoothManager bluetoothManager) {
+    private Ringer(Context context) {
         mContext = context;
-        mBluetoothManager = bluetoothManager;
-        mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         mPowerManager = IPowerManager.Stub.asInterface(
                 ServiceManager.getService(Context.POWER_SERVICE));
         // We don't rely on getSystemService(Context.VIBRATOR_SERVICE) to make sure this
@@ -159,7 +157,7 @@ public class Ringer {
 
         synchronized (this) {
             try {
-                if (mBluetoothManager.showBluetoothIndication()) {
+                if (PhoneGlobals.getInstance().showBluetoothIndication()) {
                     mPowerManager.setAttentionLight(true, 0x000000ff);
                 } else {
                     mPowerManager.setAttentionLight(true, 0x00ffffff);

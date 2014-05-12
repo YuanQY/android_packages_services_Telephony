@@ -16,7 +16,6 @@
 
 package com.android.phone;
 
-import android.bluetooth.IBluetoothHeadsetPhone;
 import android.content.Context;
 import android.os.RemoteException;
 import android.os.SystemProperties;
@@ -230,13 +229,9 @@ class CallCommandService extends ICallCommandService.Stub {
         // Telephony FW does not send us information on which caller got swapped
         // we need to update the second call active state in BluetoothPhoneService internally
         if (mCallManager.getBgPhone().getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA) {
-            final IBluetoothHeadsetPhone btPhone = mApp.getBluetoothPhoneService();
+            final BluetoothHandsfree btPhone = mApp.getBluetoothHandsfree();
             if (btPhone != null) {
-                try {
-                    btPhone.cdmaSwapSecondCallState();
-                } catch (RemoteException e) {
-                    Log.e(TAG, Log.getStackTraceString(new Throwable()));
-                }
+                btPhone.cdmaSwapSecondCallState();
             }
         }
     }

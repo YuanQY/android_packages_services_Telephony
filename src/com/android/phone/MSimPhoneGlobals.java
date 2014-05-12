@@ -23,7 +23,11 @@ import android.app.KeyguardManager;
 import android.app.PendingIntent;
 import android.app.TaskStackBuilder;
 import android.bluetooth.BluetoothAdapter;
+// Engle, for bluez bluetooth, start
+//import android.bluetooth.IBluetoothHeadsetPhone;
 import android.bluetooth.BluetoothHeadset;
+import android.bluetooth.BluetoothProfile;
+// Engle, for bluez bluetooth, end
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -171,6 +175,8 @@ public class MSimPhoneGlobals extends PhoneGlobals {
                 cdmaPhoneCallState.CdmaPhoneCallStateInit();
             }
 
+            // Engle, for bluez bluetooth, start
+            /*
             if (BluetoothAdapter.getDefaultAdapter() != null) {
                 // Start BluetoothPhoneService even if device is not voice capable.
                 // The device can still support VOIP.
@@ -181,9 +187,15 @@ public class MSimPhoneGlobals extends PhoneGlobals {
                 // Device is not bluetooth capable
                 mBluetoothPhone = null;
             }
-
-            mReceiver = new MSimPhoneAppBroadcastReceiver();
-            mMediaButtonReceiver = new MSimMediaButtonBroadcastReceiver();
+            */
+            if (BluetoothAdapter.getDefaultAdapter() != null) {
+                mBtHandsfree = BluetoothHandsfree.init(this, mCM);
+                startService(new Intent(this, BluetoothHeadsetService.class));
+            } else {
+                // Device is not bluetooth capable
+                mBtHandsfree = null;
+            }
+            // Engle, for bluez bluetooth, end
 
             // before registering for phone state changes
             mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -237,12 +249,20 @@ public class MSimPhoneGlobals extends PhoneGlobals {
             wiredHeadsetManager.addWiredHeadsetListener(this);
 
             // Bluetooth manager
-            bluetoothManager = new BluetoothManager(this, mCM, callModeler);
+            // Engle, for bluez bluetooth, start
+            /* bluetoothManager = new BluetoothManager(this, mCM, callModeler);
 
             ringer = Ringer.init(this, bluetoothManager);
 
             // Audio router
             audioRouter = new AudioRouter(this, bluetoothManager, wiredHeadsetManager, mCM);
+            */
+            // Engle, for bluez bluetooth, end
+
+            ringer = Ringer.init(this);
+
+            // Audio router
+            audioRouter = new AudioRouter(this, wiredHeadsetManager, mCM);
 
             // Service used by in-call UI to control calls
             callCommandService = new CallCommandService(this, mCM, callModeler, dtmfTonePlayer,
@@ -260,7 +280,7 @@ public class MSimPhoneGlobals extends PhoneGlobals {
             // launching the incoming-call UI when an incoming call comes
             // in.)
             notifier = MSimCallNotifier.init(this, phone, ringer, callLogger, callStateMonitor,
-                    bluetoothManager, callModeler);
+                    callModeler);
 
             XDivertUtility.init(this, phone, (MSimCallNotifier)notifier, this);
 
@@ -286,6 +306,10 @@ public class MSimPhoneGlobals extends PhoneGlobals {
             // Register for misc other intent broadcasts.
             IntentFilter intentFilter =
                     new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+            // Engle, for bluez bluetooth, start
+            intentFilter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
+            intentFilter.addAction(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED);
+            // Engle, for bluez bluetooth, end
             intentFilter.addAction(TelephonyIntents.ACTION_ANY_DATA_CONNECTION_STATE_CHANGED);
             intentFilter.addAction(Intent.ACTION_DOCK_EVENT);
             intentFilter.addAction(TelephonyIntents.ACTION_SIM_STATE_CHANGED);
@@ -420,13 +444,19 @@ public class MSimPhoneGlobals extends PhoneGlobals {
 
         ringer.updateRingerContextAfterRadioTechnologyChange(this.phone);
         notifier.updateCallNotifierRegistrationsAfterRadioTechnologyChange();
-        if (mBluetoothPhone != null) {
+
+        // Engle, for bluez bluetooth, start
+        /*if (mBluetoothPhone != null) {
             try {
                 mBluetoothPhone.updateBtHandsfreeAfterRadioTechnologyChange();
             } catch (RemoteException e) {
                 Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
             }
+        }*/
+        if (mBtHandsfree != null) {
+            mBtHandsfree.updateBtHandsfreeAfterRadioTechnologyChange();
         }
+        // Engle, for bluez bluetooth, start
 
         // Update registration for ICC status after radio technology change
         IccCard sim = phone.getIccCard();

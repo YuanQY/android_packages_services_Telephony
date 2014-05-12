@@ -25,7 +25,11 @@ import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.app.TaskStackBuilder;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.IBluetoothHeadsetPhone;
+// Engle, for bluez bluetooth, start
+//import android.bluetooth.IBluetoothHeadsetPhone;
+import android.bluetooth.BluetoothHeadset;
+import android.bluetooth.BluetoothProfile;
+// Engle, for bluez bluetooth, end
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -188,14 +192,22 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
     PhoneInterfaceManager phoneMgr;
 
     protected AudioRouter audioRouter;
-    protected BluetoothManager bluetoothManager;
+    // Engle, for bluez bluetooth, start
+    // protected BluetoothManager bluetoothManager;
+    // Engle, for bluez bluetooth, end
     protected CallCommandService callCommandService;
     protected CallGatewayManager callGatewayManager;
     protected CallHandlerServiceProxy callHandlerServiceProxy;
     protected CallModeler callModeler;
     protected CallStateMonitor callStateMonitor;
     protected DTMFTonePlayer dtmfTonePlayer;
-    protected IBluetoothHeadsetPhone mBluetoothPhone;
+    // Engle, for bluez bluetooth, start
+    // protected IBluetoothHeadsetPhone mBluetoothPhone;
+    BluetoothHandsfree mBtHandsfree;
+    int mBluetoothHeadsetState = BluetoothProfile.STATE_DISCONNECTED;
+    int mBluetoothHeadsetAudioState = BluetoothHeadset.STATE_AUDIO_DISCONNECTED;
+    boolean mShowBluetoothIndication = false;
+    // Engle, for bluez bluetooth, end
     protected Ringer ringer;
     protected WiredHeadsetManager wiredHeadsetManager;
 
@@ -369,7 +381,10 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
                     phoneState = mCM.getState();
                     if (phoneState == PhoneConstants.State.OFFHOOK &&
                             !wiredHeadsetManager.isHeadsetPlugged() &&
-                            !bluetoothManager.isBluetoothHeadsetAudioOn()) {
+                            // Engle, for bluez bluetooth, start
+                            // !bluetoothManager.isBluetoothHeadsetAudioOn()) {
+                            !isBluetoothHeadsetAudioOn()) {
+                            // Engle, for bluez bluetooth, end
                         audioRouter.setSpeaker(inDockMode);
 
                         PhoneUtils.turnOnSpeaker(getApplicationContext(), inDockMode, true);
@@ -457,6 +472,8 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
                 cdmaPhoneCallState.CdmaPhoneCallStateInit();
             }
 
+            // Engle, for bluez bluetooth, start
+            /*
             if (BluetoothAdapter.getDefaultAdapter() != null) {
                 // Start BluetoothPhoneService even if device is not voice capable.
                 // The device can still support VOIP.
@@ -467,6 +484,15 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
                 // Device is not bluetooth capable
                 mBluetoothPhone = null;
             }
+            */
+            if (BluetoothAdapter.getDefaultAdapter() != null) {
+                mBtHandsfree = BluetoothHandsfree.init(this, mCM);
+                startService(new Intent(this, BluetoothHeadsetService.class));
+            } else {
+                // Device is not bluetooth capable
+                mBtHandsfree = null;
+            }
+            // Engle, for bluez bluetooth, end
 
             // before registering for phone state changes
             mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -517,15 +543,20 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
             wiredHeadsetManager.addWiredHeadsetListener(this);
 
             // Bluetooth manager
-            bluetoothManager = new BluetoothManager(this, mCM, callModeler);
+            // Engle, for bluez bluetooth, start
+            /* bluetoothManager = new BluetoothManager(this, mCM, callModeler);
 
             ringer = Ringer.init(this, bluetoothManager);
 
-            // Convert old blacklist to new format
-            Blacklist.migrateOldDataIfPresent(this);
-
             // Audio router
             audioRouter = new AudioRouter(this, bluetoothManager, wiredHeadsetManager, mCM);
+            */
+            // Engle, for bluez bluetooth, end
+
+            ringer = Ringer.init(this);
+
+            // Audio router
+            audioRouter = new AudioRouter(this, wiredHeadsetManager, mCM);
 
             // Service used by in-call UI to control calls
             callCommandService = new CallCommandService(this, mCM, callModeler, dtmfTonePlayer,
@@ -542,7 +573,7 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
             // launching the incoming-call UI when an incoming call comes
             // in.)
             notifier = CallNotifier.init(this, phone, ringer, callLogger, callStateMonitor,
-                    bluetoothManager, callModeler);
+                    callModeler);
 
             // register for ICC status
             IccCard sim = phone.getIccCard();
@@ -563,6 +594,10 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
             // Register for misc other intent broadcasts.
             IntentFilter intentFilter =
                     new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+            // Engle, for bluez bluetooth, start
+            intentFilter.addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED);
+            intentFilter.addAction(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED);
+            // Engle, for bluez bluetooth, end
             intentFilter.addAction(TelephonyIntents.ACTION_ANY_DATA_CONNECTION_STATE_CHANGED);
             intentFilter.addAction(Intent.ACTION_DOCK_EVENT);
             intentFilter.addAction(TelephonyIntents.ACTION_SIM_STATE_CHANGED);
@@ -779,13 +814,24 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
         return ringer;
     }
 
+    // Engle, for bluez bluetooth, start
+    BluetoothHandsfree getBluetoothHandsfree() {
+        return mBtHandsfree;
+    }
+    
+    /*
     IBluetoothHeadsetPhone getBluetoothPhoneService() {
         return mBluetoothPhone;
     }
-
-    /* package */ BluetoothManager getBluetoothManager() {
+    //package 
+    BluetoothManager getBluetoothManager() {
         return bluetoothManager;
     }
+    */
+    boolean isBluetoothHeadsetAudioOn() {
+        return (mBluetoothHeadsetAudioState != BluetoothHeadset.STATE_AUDIO_DISCONNECTED);
+    }
+    // Engle, for bluez bluetooth, end
 
     /* package */ WiredHeadsetManager getWiredHeadsetManager() {
         return wiredHeadsetManager;
@@ -1136,13 +1182,18 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
         notifier.updateCallNotifierRegistrationsAfterRadioTechnologyChange();
         callStateMonitor.updateAfterRadioTechnologyChange();
 
-        if (mBluetoothPhone != null) {
+        // Engle, for bluez bluetooth, start
+        /*if (mBluetoothPhone != null) {
             try {
                 mBluetoothPhone.updateBtHandsfreeAfterRadioTechnologyChange();
             } catch (RemoteException e) {
                 Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
             }
+        }*/
+        if (mBtHandsfree != null) {
+            mBtHandsfree.updateBtHandsfreeAfterRadioTechnologyChange();
         }
+        // Engle, for bluez bluetooth, start
 
         // Update registration for ICC status after radio technology change
         IccCard sim = phone.getIccCard();
@@ -1153,6 +1204,74 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
         }
     }
 
+    // Engle, add for bluez bluetooth, start
+    /**
+     * @return true if the onscreen UI should currently be showing the
+     * special "bluetooth is active" indication in a couple of places (in
+     * which UI elements turn blue and/or show the bluetooth logo.)
+     *
+     * This depends on the BluetoothHeadset state *and* the current
+     * telephony state; see shouldShowBluetoothIndication().
+     *
+     * @see CallCard
+     * @see NotificationMgr.updateInCallNotification
+     */
+    /* package */ boolean showBluetoothIndication() {
+        return mShowBluetoothIndication;
+    }
+
+    boolean isBluetoothAvailable() {
+        return mBtHandsfree != null && mBtHandsfree.isHeadsetConnected();
+    }
+    /* package */ void updateBluetoothIndication(boolean forceUiUpdate) {
+        mShowBluetoothIndication = shouldShowBluetoothIndication(mBluetoothHeadsetState,
+                                                                 mBluetoothHeadsetAudioState, mCM);
+    }
+
+        /**
+     * UI policy helper function for the couple of places in the UI that
+     * have some way of indicating that "bluetooth is in use."
+     *
+     * @return true if the onscreen UI should indicate that "bluetooth is in use",
+     *         based on the specified bluetooth headset state, and the
+     *         current state of the phone.
+     * @see showBluetoothIndication()
+     */
+    private static boolean shouldShowBluetoothIndication(int bluetoothState,
+                                                         int bluetoothAudioState,
+                                                         CallManager cm) {
+        // We want the UI to indicate that "bluetooth is in use" in two
+        // slightly different cases:
+        //
+        // (a) The obvious case: if a bluetooth headset is currently in
+        //     use for an ongoing call.
+        //
+        // (b) The not-so-obvious case: if an incoming call is ringing,
+        //     and we expect that audio *will* be routed to a bluetooth
+        //     headset once the call is answered.
+
+        switch (cm.getState()) {
+            case OFFHOOK:
+                // This covers normal active calls, and also the case if
+                // the foreground call is DIALING or ALERTING.  In this
+                // case, bluetooth is considered "active" if a headset
+                // is connected *and* audio is being routed to it.
+                return ((bluetoothState == BluetoothHeadset.STATE_CONNECTED)
+                        && (bluetoothAudioState == BluetoothHeadset.STATE_AUDIO_CONNECTED));
+
+            case RINGING:
+                // If an incoming call is ringing, we're *not* yet routing
+                // audio to the headset (since there's no in-call audio
+                // yet!)  In this case, if a bluetooth headset is
+                // connected at all, we assume that it'll become active
+                // once the user answers the phone.
+                return (bluetoothState == BluetoothHeadset.STATE_CONNECTED);
+
+            default:  // Presumably IDLE
+                return false;
+        }
+    }
+    // Engle, add for bluez bluetooth, end
 
     /**
      * This is called when the wired headset state changes.
@@ -1186,6 +1305,21 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
                 SystemProperties.set(PROPERTY_AIRPLANE_MODE_ON, (enabled ? "0" : "1"));
 
                 phone.setRadioPower(enabled);
+            // Engle, add for bluez bluetooth, start
+            } else if (action.equals(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)) {
+                mBluetoothHeadsetState = intent.getIntExtra(BluetoothHeadset.EXTRA_STATE,
+                                                          BluetoothHeadset.STATE_DISCONNECTED);
+                if (VDBG) Log.d(LOG_TAG, "mReceiver: HEADSET_STATE_CHANGED_ACTION");
+                if (VDBG) Log.d(LOG_TAG, "==> new state: " + mBluetoothHeadsetState);
+                // updateBluetoothIndication(true);  // Also update any visible UI if necessary
+            } else if (action.equals(BluetoothHeadset.ACTION_AUDIO_STATE_CHANGED)) {
+                mBluetoothHeadsetAudioState =
+                        intent.getIntExtra(BluetoothHeadset.EXTRA_STATE,
+                                           BluetoothHeadset.STATE_AUDIO_DISCONNECTED);
+                if (VDBG) Log.d(LOG_TAG, "mReceiver: HEADSET_AUDIO_STATE_CHANGED_ACTION");
+                if (VDBG) Log.d(LOG_TAG, "==> new state: " + mBluetoothHeadsetAudioState);
+                // updateBluetoothIndication(true);  // Also update any visible UI if necessary
+                // Engle, add for bluez bluetooth, end
             } else if (action.equals(TelephonyIntents.ACTION_ANY_DATA_CONNECTION_STATE_CHANGED)) {
                 if (VDBG) Log.d(LOG_TAG, "mReceiver: ACTION_ANY_DATA_CONNECTION_STATE_CHANGED");
                 if (VDBG) Log.d(LOG_TAG, "- state: " + intent.getStringExtra(PhoneConstants.STATE_KEY));
@@ -1471,20 +1605,24 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
     private static final long CALL_ORIGIN_EXPIRATION_MILLIS = 30 * 1000;
 
     /** Service connection */
+    // Engle, add for bluez bluetooth, start
+    /*
     protected final ServiceConnection mBluetoothPhoneConnection = new ServiceConnection() {
 
-        /** Handle the task of binding the local object to the service */
+        // Handle the task of binding the local object to the service
         public void onServiceConnected(ComponentName className, IBinder service) {
             Log.i(LOG_TAG, "Headset phone created, binding local service.");
             mBluetoothPhone = IBluetoothHeadsetPhone.Stub.asInterface(service);
         }
 
-        /** Handle the task of cleaning up the local binding */
+        // Handle the task of cleaning up the local binding 
         public void onServiceDisconnected(ComponentName className) {
             Log.i(LOG_TAG, "Headset phone disconnected, cleaning local binding.");
             mBluetoothPhone = null;
         }
     };
+    */
+    // Engle, add for bluez bluetooth, end
 
     /**
      * Gets the default subscription

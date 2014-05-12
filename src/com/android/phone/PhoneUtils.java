@@ -22,7 +22,7 @@ package com.android.phone;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
-import android.bluetooth.IBluetoothHeadsetPhone;
+
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -330,7 +330,11 @@ public class PhoneUtils {
         final Phone phone = ringingCall.getPhone();
         final boolean phoneIsCdma = (phone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA);
         boolean answered = false;
-        IBluetoothHeadsetPhone btPhone = null;
+
+        // Engle, for bluez bluetooth, start
+        // IBluetoothHeadsetPhone btPhone = null;
+        BluetoothHandsfree bluetoothHandsfree = null;
+        // Engle, for bluez bluetooth, end
 
         // enable noise suppression
         turnOnNoiseSuppression(app.getApplicationContext(), true);
@@ -362,9 +366,11 @@ public class PhoneUtils {
                         // drops off
                         app.cdmaPhoneCallState.setAddCallMenuStateAfterCallWaiting(true);
 
+                        // Engle, for bluez bluetooth, start
                         // If a BluetoothPhoneService is valid we need to set the second call state
                         // so that the Bluetooth client can update the Call state correctly when
                         // a call waiting is answered from the Phone.
+                        /*
                         btPhone = app.getBluetoothPhoneService();
                         if (btPhone != null) {
                             try {
@@ -373,6 +379,12 @@ public class PhoneUtils {
                                 Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
                             }
                         }
+                        */
+                        bluetoothHandsfree = app.getBluetoothHandsfree();
+                        if (bluetoothHandsfree != null) {
+                            bluetoothHandsfree.cdmaSetSecondCallState(true);
+                        }
+                        // Engle, for bluez bluetooth, end
                   }
                 }
 
@@ -392,8 +404,6 @@ public class PhoneUtils {
                 // Check is phone in any dock, and turn on speaker accordingly
                 final boolean speakerActivated = activateSpeakerIfDocked(phone);
 
-                final BluetoothManager btManager = app.getBluetoothManager();
-
                 // When answering a phone call, the user will move the phone near to her/his ear
                 // and start conversation, without checking its speaker status. If some other
                 // application turned on the speaker mode before the call and didn't turn it off,
@@ -403,7 +413,7 @@ public class PhoneUtils {
                 // - we did not activate speaker by ourselves during the process above, and
                 // - Bluetooth headset is not in use.
                 if (isRealIncomingCall && !speakerActivated && isSpeakerOn(app)
-                        && !btManager.isBluetoothHeadsetAudioOn()) {
+                        && !app.isBluetoothHeadsetAudioOn()) {
                     // This is not an error but might cause users' confusion. Add log just in case.
                     Log.i(LOG_TAG, "Forcing speaker off due to new incoming call...");
                     turnOnSpeaker(app, false, true);
@@ -415,13 +425,19 @@ public class PhoneUtils {
                     // restore the cdmaPhoneCallState and btPhone.cdmaSetSecondCallState:
                     app.cdmaPhoneCallState.setCurrentCallState(
                             app.cdmaPhoneCallState.getPreviousCallState());
+                    // Engle, add for bluez bluetooth, start
+                    /*
                     if (btPhone != null) {
                         try {
                             btPhone.cdmaSetSecondCallState(false);
                         } catch (RemoteException e) {
                             Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
                         }
+                    }*/
+                    if (bluetoothHandsfree != null) {
+                        bluetoothHandsfree.cdmaSetSecondCallState(false);
                     }
+                    // Engle, add for bluez bluetooth, end
                 }
             }
         }
@@ -946,11 +962,15 @@ public class PhoneUtils {
             // Check is phone in any dock, and turn on speaker accordingly
             final boolean speakerActivated = activateSpeakerIfDocked(phone);
 
-            final BluetoothManager btManager = app.getBluetoothManager();
+            // Engle, add for bluez bluetooth, start
+            //final BluetoothManager btManager = app.getBluetoothManager();
 
             // See also similar logic in answerCall().
+            //if (initiallyIdle && !speakerActivated && isSpeakerOn(app)
+            //        && !btManager.isBluetoothHeadsetAudioOn()) {
             if (initiallyIdle && !speakerActivated && isSpeakerOn(app)
-                    && !btManager.isBluetoothHeadsetAudioOn()) {
+                    && !app.isBluetoothHeadsetAudioOn()) {
+            // Engle, add for bluez bluetooth, end
                 // This is not an error but might cause users' confusion. Add log just in case.
                 Log.i(LOG_TAG, "Forcing speaker off when initiating a new outgoing call...");
                 PhoneUtils.turnOnSpeaker(app, false, true);
@@ -2884,12 +2904,18 @@ public class PhoneUtils {
             final PhoneGlobals app = PhoneGlobals.getInstance();
 
             // TODO: This function should move to AudioRouter
-            final BluetoothManager btManager = app.getBluetoothManager();
+            // Engle, change for bluez, start
+            // final BluetoothManager btManager = app.getBluetoothManager();
+            // Engle, change for bluez, end
             final WiredHeadsetManager wiredHeadset = app.getWiredHeadsetManager();
             final AudioRouter audioRouter = app.getAudioRouter();
 
-            if (!wiredHeadset.isHeadsetPlugged() && !btManager.isBluetoothHeadsetAudioOn()) {
+            // Engle, change for bluez, start
+            // if (!wiredHeadset.isHeadsetPlugged() && !btManager.isBluetoothHeadsetAudioOn()) {
+            //    audioRouter.setSpeaker(true);
+            if (!wiredHeadset.isHeadsetPlugged() && !app.isBluetoothHeadsetAudioOn()) {
                 audioRouter.setSpeaker(true);
+            // Engle, change for bluez, end
                 activated = true;
             }
         }

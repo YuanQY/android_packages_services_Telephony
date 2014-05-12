@@ -25,7 +25,6 @@ import android.util.Log;
 
 import com.android.internal.telephony.CallManager;
 import com.android.internal.telephony.PhoneConstants;
-import com.android.phone.BluetoothManager.BluetoothIndicatorListener;
 import com.android.phone.WiredHeadsetManager.WiredHeadsetListener;
 import com.android.services.telephony.common.AudioMode;
 
@@ -34,7 +33,7 @@ import java.util.List;
 /**
  * Responsible for Routing in-call audio and maintaining routing state.
  */
-/* package */ class AudioRouter implements BluetoothIndicatorListener, WiredHeadsetListener {
+/* package */ class AudioRouter implements WiredHeadsetListener {
 
     private static String LOG_TAG = AudioRouter.class.getSimpleName();
     private static final boolean DBG =
@@ -45,7 +44,6 @@ import java.util.List;
     private static final boolean OFF = false;
 
     private final Context mContext;
-    private final BluetoothManager mBluetoothManager;
     private final WiredHeadsetManager mWiredHeadsetManager;
     private final CallManager mCallManager;
     private final List<AudioModeListener> mListeners = Lists.newArrayList();
@@ -53,10 +51,9 @@ import java.util.List;
     private int mPreviousMode = AudioMode.EARPIECE;
     private int mSupportedModes = AudioMode.ALL_MODES;
 
-    public AudioRouter(Context context, BluetoothManager bluetoothManager,
+    public AudioRouter(Context context,
             WiredHeadsetManager wiredHeadsetManager, CallManager callManager) {
         mContext = context;
-        mBluetoothManager = bluetoothManager;
         mWiredHeadsetManager = wiredHeadsetManager;
         mCallManager = callManager;
 
@@ -127,7 +124,10 @@ import java.util.List;
             turnOnOffSpeaker(ON);
 
         } else if (AudioMode.BLUETOOTH == mode) {
-            if (mBluetoothManager.isBluetoothAvailable()) {
+            // Engle, add for bluez bluetooth, start
+            final PhoneGlobals app = PhoneGlobals.getInstance();
+            // Engle, add for bluez bluetooth, end
+            if (app.isBluetoothAvailable()) {
                 // Manually turn the speaker phone off, instead of allowing the
                 // Bluetooth audio routing to handle it, since there's other
                 // important state-updating that needs to happen in the
@@ -182,10 +182,12 @@ import java.util.List;
         notifyListeners();
     }
 
+    // Engle, add for bluez bluetooth, start
     /**
      * Called when the bluetooth connection changes.
      * We adjust the audio mode according to the state we receive.
      */
+     /*
     @Override
     public void onBluetoothIndicationChange(boolean isConnected, BluetoothManager btManager) {
         logD("onBluetoothIndicationChange " + isConnected);
@@ -193,6 +195,8 @@ import java.util.List;
         // this will read the new bluetooth mode appropriately
         updateAudioModeTo(calculateModeFromCurrentState());
     }
+    */
+    // Engle, add for bluez bluetooth, end
 
     /**
      * Called when the state of the wired headset changes.
@@ -208,9 +212,11 @@ import java.util.List;
         final boolean isOffhook = (mCallManager.getState() == PhoneConstants.State.OFFHOOK);
 
         int newMode = mAudioMode;
-
+        // Engle, add for bluez bluetooth, start
+        final PhoneGlobals app = PhoneGlobals.getInstance();
+        // Engle, add for bluez bluetooth, end
         // Change state only if we are not using bluetooth
-        if (!mBluetoothManager.isBluetoothHeadsetAudioOn()) {
+        if (!app.isBluetoothHeadsetAudioOn()) {
 
             // Do special logic with speakerphone if we have an ongoing (offhook) call.
             if (isOffhook) {
@@ -267,13 +273,17 @@ import java.util.List;
      * nothing.
      */
     private boolean turnOnOffBluetooth(boolean onOff) {
-        if (mBluetoothManager.isBluetoothAvailable()) {
-            final boolean isAlreadyOn = mBluetoothManager.isBluetoothAudioConnected();
+        // Engle, add for bluez bluetooth, start
+        final PhoneGlobals app = PhoneGlobals.getInstance();
+        // Engle, add for bluez bluetooth, end
+        BluetoothHandsfree bHF = app.getBluetoothHandsfree();
+        if (bHF != null && bHF.isHeadsetConnected()) {
+            final boolean isAlreadyOn = bHF.isAudioOn();
 
             if (onOff && !isAlreadyOn) {
-                mBluetoothManager.connectBluetoothAudio();
+                bHF.userWantsAudioOn();
             } else if (!onOff && isAlreadyOn) {
-                mBluetoothManager.disconnectBluetoothAudio();
+                bHF.userWantsAudioOff();
             }
         } else if (onOff) {
             Log.e(LOG_TAG, "Asking to turn on bluetooth, but there is no bluetooth availabled.");
@@ -293,7 +303,9 @@ import java.util.List;
     }
 
     private void init() {
-        mBluetoothManager.addBluetoothIndicatorListener(this);
+        // Engle, add for bluez bluetooth, start
+        // mBluetoothManager.addBluetoothIndicatorListener(this);
+        // Engle, add for bluez bluetooth, end
         mWiredHeadsetManager.addWiredHeadsetListener(this);
     }
 
@@ -303,9 +315,11 @@ import java.util.List;
     private int calculateModeFromCurrentState() {
 
         int mode = AudioMode.EARPIECE;
-
+        // Engle, add for bluez bluetooth, start
+        final PhoneGlobals app = PhoneGlobals.getInstance();
+        // Engle, add for bluez bluetooth, end
         // There is a very specific ordering here
-        if (mBluetoothManager.showBluetoothIndication()) {
+        if (app.showBluetoothIndication()) {
             mode = AudioMode.BLUETOOTH;
         } else if (PhoneUtils.isSpeakerOn(mContext)) {
             mode = AudioMode.SPEAKER;
@@ -358,6 +372,9 @@ import java.util.List;
     private int calculateSupportedModes() {
         // speaker phone always a supported state
         int supportedModes = AudioMode.SPEAKER;
+        // Engle, add for bluez bluetooth, start
+        final PhoneGlobals app = PhoneGlobals.getInstance();
+        // Engle, add for bluez bluetooth, end
 
         if (mWiredHeadsetManager.isHeadsetPlugged()) {
             supportedModes |= AudioMode.WIRED_HEADSET;
@@ -365,7 +382,7 @@ import java.util.List;
             supportedModes |= AudioMode.EARPIECE;
         }
 
-        if (mBluetoothManager.isBluetoothAvailable()) {
+        if (app.isBluetoothAvailable()) {
             supportedModes |= AudioMode.BLUETOOTH;
         }
 

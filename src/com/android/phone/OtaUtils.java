@@ -163,8 +163,6 @@ public class OtaUtils {
     // an InCallScreen or CallCard or any OTASP UI elements at all.
     private boolean mInteractive = true;
 
-    // used when setting speakerphone
-    private final BluetoothManager mBluetoothManager;
 
     /**
      * OtaWidgetData class represent all OTA UI elements
@@ -210,12 +208,11 @@ public class OtaUtils {
      * Note if interactive is true, you must also call updateUiWidgets() as soon
      * as the InCallScreen instance is ready.
      */
-    public OtaUtils(Context context, boolean interactive, BluetoothManager bluetoothManager) {
+    public OtaUtils(Context context, boolean interactive) {
         if (DBG) log("OtaUtils constructor...");
         mApplication = PhoneGlobals.getInstance();
         mContext = context;
         mInteractive = interactive;
-        mBluetoothManager = bluetoothManager;
     }
 
     /**
@@ -312,6 +309,7 @@ public class OtaUtils {
      */
     public static void startInteractiveOtasp(Context context) {
         if (DBG) log("startInteractiveOtasp()...");
+        PhoneGlobals app = PhoneGlobals.getInstance();
 
         // There are two ways to start OTASP on voice-capable devices:
         //
@@ -385,8 +383,7 @@ public class OtaUtils {
         }
 
         // Create the OtaUtils instance.
-        app.otaUtils = new OtaUtils(context, false /* non-interactive mode */,
-                app.getBluetoothManager());
+        app.otaUtils = new OtaUtils(context, false /* non-interactive mode */);
         if (DBG) log("- created OtaUtils: " + app.otaUtils);
 
         // ... and kick off the OTASP call.
@@ -501,8 +498,7 @@ public class OtaUtils {
         }
 
         // Create the OtaUtils instance.
-        app.otaUtils = new OtaUtils(app.getApplicationContext(), true /* interactive */,
-                app.getBluetoothManager());
+        app.otaUtils = new OtaUtils(app.getApplicationContext(), true /* interactive */);
         if (DBG) log("- created OtaUtils: " + app.otaUtils);
 
         // NOTE we still need to call OtaUtils.updateUiWidgets() once the
@@ -560,10 +556,21 @@ public class OtaUtils {
             return;
         }
 
+        // Engle, add for bluez bluetooth, start
+        /*
         if (state && mBluetoothManager.isBluetoothAvailable()
                 && mBluetoothManager.isBluetoothAudioConnected()) {
             mBluetoothManager.disconnectBluetoothAudio();
         }
+        */
+
+        final PhoneGlobals app = PhoneGlobals.getInstance();
+        BluetoothHandsfree bluetoothHandsfree = app.getBluetoothHandsfree();
+        if (state && bluetoothHandsfree != null
+                && bluetoothHandsfree.isAudioOn()) {
+            bluetoothHandsfree.userWantsAudioOff();
+        }
+        // Engle, add for bluez bluetooth, end
         PhoneUtils.turnOnSpeaker(mContext, state, true);
     }
 

@@ -76,11 +76,11 @@ public class MSimCallNotifier extends CallNotifier {
      */
     /* package */ static CallNotifier init(MSimPhoneGlobals app, Phone phone, Ringer ringer,
                           CallLogger callLogger, CallStateMonitor callStateMonitor,
-                          BluetoothManager bluetoothManager, CallModeler callModeler) {
+                          CallModeler callModeler) {
         synchronized (MSimCallNotifier.class) {
             if (sInstance == null) {
                 sInstance = new MSimCallNotifier(app, phone, ringer, callLogger, callStateMonitor,
-                        bluetoothManager, callModeler);
+                        callModeler);
             } else {
                 Log.wtf(LOG_TAG, "init() called multiple times!  sInstance = " + sInstance);
             }
@@ -91,8 +91,8 @@ public class MSimCallNotifier extends CallNotifier {
     /** Private constructor; @see init() */
     protected MSimCallNotifier(MSimPhoneGlobals app, Phone phone, Ringer ringer,
             CallLogger callLogger,CallStateMonitor callStateMonitor,
-            BluetoothManager bluetoothManager, CallModeler callModeler) {
-        super(app, phone, ringer, callLogger, callStateMonitor, bluetoothManager, callModeler);
+            CallModeler callModeler) {
+        super(app, phone, ringer, callLogger, callStateMonitor, callModeler);
     }
 
     @Override
@@ -394,7 +394,7 @@ public class MSimCallNotifier extends CallNotifier {
         // listens for phone state changes itself.
         // TODO: Have BluetoothManager listen to CallModeler instead of relying on
         // CallNotifier
-        mBluetoothManager.updateBluetoothIndication();
+        mApplication.updateBluetoothIndication(false);
 
         manageMSimInCallTones(false);
 
