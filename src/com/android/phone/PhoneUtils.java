@@ -1055,13 +1055,17 @@ public class PhoneUtils {
         // Telephony FW does not send us information on which caller got swapped
         // we need to update the second call active state in BluetoothPhoneService internally
         if (mApp.mCM.getBgPhone().getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA) {
-            final IBluetoothHeadsetPhone btPhone = mApp.getBluetoothPhoneService();
-            if (btPhone != null) {
-                try {
-                    btPhone.cdmaSwapSecondCallState();
-                } catch (RemoteException e) {
-                    Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
-                }
+            // Engle, for bluez bluetooth, start
+            // final IBluetoothHeadsetPhone btPhone = mApp.getBluetoothPhoneService();
+            BluetoothHandsfree bluetoothHandsfree = null;
+            // Engle, for bluez bluetooth, end
+
+            if (bluetoothHandsfree != null) {
+                //try {
+                    bluetoothHandsfree.cdmaSwapSecondCallState();
+               // } catch (RemoteException e) {
+                //    Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
+               // }
             }
         }
     }

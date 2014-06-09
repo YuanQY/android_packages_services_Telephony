@@ -21,7 +21,9 @@ package com.android.phone;
 
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
-import android.bluetooth.IBluetoothHeadsetPhone;
+// Engle, for bluez bluetooth, start
+// import android.bluetooth.IBluetoothHeadsetPhone;
+// Engle, for bluez bluetooth, end
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
